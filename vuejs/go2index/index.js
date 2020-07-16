@@ -1,20 +1,35 @@
 // =======Options START=======
 var authConfig = {
-  siteName: "Glory to Heaven",
+  siteName: "meindex",
   version: "v7.7.2",
   github_name: "tks18",
   github_repo: "gindex-v4",
   favicon: "https://raw.githubusercontent.com/tks18/infozy/develop/favicon.ico",
-  client_id: "client_id",
-  backendSite: "http://localhost:3000",
-  client_secret: "client_id",
-  refresh_token: "refresh_token",
+  client_id: "",
+  backendSite: "",
+  client_secret: "",
+  refresh_token: "",
   roots: [
     {
-      id: "folder_id",
-      name: "Glory to Heaven",
-      protect_file_link: true,
-    }
+      id: "0AAuH7cHBzwAsUk9PVA",
+      name: "TV",
+      protect_file_link: false,
+    },
+	{
+      id: "0AOFQjgX1BZZuUk9PVA",
+      name: "Anime",
+      protect_file_link: false,
+    },
+	{
+      id: "0AEDQEOKb5mLzUk9PVA",
+      name: "Movies 720p",
+      protect_file_link: false,
+    },
+	{
+      id: "0AKfyERS3jOlTUk9PVA",
+      name: "Movies 1080p",
+      protect_file_link: false,
+    },	
   ],
   default_gd: 0,
   files_list_page_size: 200,
