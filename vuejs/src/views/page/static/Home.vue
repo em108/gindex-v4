@@ -27,24 +27,28 @@
         </div>
          <div v-show="logged && netflix" class="columns is-desktop is-multiline is-centered is-vcentered mx-0 px-0">
            <div v-for="(hero, index) in mainhero" v-bind:key="index" class="column is-full mx-0 px-0 mt-0 pt-0">
-             <section class="hero is-fullheight mx-0 px-0" :style="'background-image: url('+hero.poster+');background-size:cover;min-width:100%;box-shadow:inset 0 0 0 2000px rgba(0, 0, 0, 0.2);'">
+             <section :class="ismobile ? 'hero is-fullheight mx-0 px-0' : 'hero is-large mx-0 px-0'" :style=" ismobile ? 'background: center;background-image: url('+hero.poster+');background-size:cover;min-width:100%;box-shadow:inset 0 0 0 2000px rgba(0, 0, 0, 0.2);' : 'background-image: url('+hero.poster+');background-size:cover;min-width:100%;box-shadow:inset 0 0 0 2000px rgba(0, 0, 0, 0.2);'">
               <div class="hero-body">
                 <div class="container">
-                  <h2 class="subtitle has-text-white">
-                    {{ hero.subtitle }}
-                  </h2>
-                  <h1 class="title main-home-hero-title has-text-white is-1">
-                    {{ hero.name }}
-                  </h1>
-                  <h3 class="subtitle has-text-white">
-                    Watch Here
-                  </h3>
-                  <button class="button is-dark" @click="gotoPage('/'+hero.link+'/')">
-                    <span class="icon">
-                      <i class="fas fa-play"></i>
-                    </span>
-                    <span>Play Now</span>
-                  </button>
+                  <div class="columns is-mobile is-vcentered is-multiline">
+                    <div :class="ismobile ? 'column is-full' : 'column-is-half'">
+                      <h2 class="subtitle has-text-white">
+                        {{ hero.subtitle }}
+                      </h2>
+                      <h1 class="title main-home-hero-title has-text-white is-1">
+                        {{ hero.name }}
+                      </h1>
+                      <h3 class="subtitle has-text-white">
+                        Watch Here
+                      </h3>
+                      <button class="button is-dark" @click="gotoPage('/'+hero.link+'/')">
+                        <span class="icon">
+                          <i class="fas fa-play"></i>
+                        </span>
+                        <span>Play Now</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
@@ -182,6 +186,14 @@
                       Get Started Now !
                     </h1>
                   </div>
+                  <div :class="ismobile ? 'column is-full'  : 'column is-full'">
+                    <button class="button is-warning" @click="gotoPage('/', 'login')">
+                      <span>Hybrid Login</span>
+                      <span class="icon">
+                        <i class="fas fa-arrow-right"></i>
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </h1>
               <form @submit.prevent="verifyEmail">
@@ -237,6 +249,7 @@ import 'vue-loading-overlay/dist/vue-loading.css';
                 token: {},
                 gds: [],
                 netflix: true,
+                dialog: false,
                 mainhero: {},
                 trending: [],
                 category: [],
@@ -265,7 +278,20 @@ import 'vue-loading-overlay/dist/vue-loading.css';
             this.loading = true;
             var token = localStorage.getItem("tokendata");
             var user = localStorage.getItem("userdata");
-            if (user != null && token != null){
+            var hyBridToken = localStorage.getItem("hybridToken");
+            if(hyBridToken && hyBridToken != null || hyBridToken != undefined){
+              const hybridData = JSON.parse(this.$hash.AES.decrypt(hyBridToken, this.$pass).toString(this.$hash.enc.Utf8))
+              if(hybridData.user){
+                this.user = hybridData;
+                this.logged = true;
+                this.loading = false;
+              } else {
+                this.logged = false;
+                this.loading = false;
+                localStorage.removeItem("hybridToken");
+                this.gotoPage("/", "login")
+              }
+            } else if (user != null && token != null){
               var tokenData = JSON.parse(this.$hash.AES.decrypt(token, this.$pass).toString(this.$hash.enc.Utf8));
               var userData = JSON.parse(this.$hash.AES.decrypt(user, this.$pass).toString(this.$hash.enc.Utf8));
               this.user = userData;
@@ -323,7 +349,8 @@ import 'vue-loading-overlay/dist/vue-loading.css';
               }).catch(error => {
                 this.loading = false;
                 this.$bus.$emit('verified', 'User Verified')
-                this.$router.push({ name: 'results', params: { cmd: 'result', id: 0, noredirect: true, success: false, error: error, data: "There's Some Error With Your Network. Please Try Again Later." } })
+                console.log(error);
+                this.$router.push({ name: 'login', params: { cmd: 'login', id:0, email: this.email } })
               })
             }
           },

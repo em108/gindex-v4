@@ -19,6 +19,7 @@
   <script>
     var authConfig = {
       version: '1.1.0',
+      hybridpass: "$2b$10$VuQSSgZ130dr8e7o3rUqS.5Hxl1lPxgN.v9JsqGLh30/4i0u5bCua",
       roots: [
         {
           id: "",
@@ -216,6 +217,8 @@
       deleteUser: 'http://localhost:3000/delete/user',
       deleteMe: 'http://localhost:3000/user/delete',
       deleteAdmin: 'http://localhost:3000/delete/admin',
+      mediaTokenTransmitter: 'http://localhost:3000/user/media/transmit',
+      mediaTokenVerify: 'http://localhost:3000/user/media/verify',
       getUsers: 'http://localhost:3000/get/users',
       getAll: 'http://localhost:3000/get/all',
       getAdmins: 'http://localhost:3000/get/admins',
@@ -263,6 +266,7 @@
     window.gds = JSON.parse(
       JSON.stringify(authConfig.roots.map((it) => it.name))
     );
+    window.gdHybridPass = authConfig.hybridpass;
     window.current_drive_order = 0;
   </script>
   <!-- The JS file accelerated by CDN is configured under vue.config.js -->

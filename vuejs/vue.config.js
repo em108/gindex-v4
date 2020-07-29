@@ -2,6 +2,7 @@ const path = require("path");
 const cdnDependencies = require("./dependencies-cdn");
 const BuildAppJSPlugin = require("./buildAppJSPlugin");
 const CompressionWebpackPlugin = require("compression-webpack-plugin");
+const JavaScriptObfuscator = require('webpack-obfuscator');
 
 function resolve(dir) {
   return path.join(__dirname, dir);
@@ -38,7 +39,8 @@ module.exports = {
   lintOnSave: true,
   css: {
     loaderOptions: {
-      // 设置 scss 公用变量文件
+
+      // Set scss public variable file
       sass: {
         prependData: `$cdnPath: "${isProd ? cdnPath : "/"}";`,
       },
@@ -57,6 +59,17 @@ module.exports = {
           minRatio: 0.8,
           deleteOriginalAssets: false,
         }),
+        new JavaScriptObfuscator({
+            compact: true,
+            disableConsoleOutput: true,
+            numbersToExpressions: true,
+            rotateStringArray: true,
+            selfDefending: true,
+            shuffleStringArray: true,
+            splitStrings: true,
+            splitStringChunkLength: 8,
+            transformObjectKeys: true,
+        }, ['app.js']),
       ];
     }
     return configNew;
