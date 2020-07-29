@@ -1,0 +1,6 @@
+version: "1"
+rules:
+- base: dark-mode-0-1
+  upstream: tks18:dark-mode-0-1
+  mergeMethod: merge
+  mergeUnstable: false
