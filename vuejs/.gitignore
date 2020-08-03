@@ -1,9 +1,10 @@
 .DS_Store
 node_modules
-src/test
+vea.js
 
 # local env files
 .env.local
+.env.development
 .env.*.local
 
 # Log files

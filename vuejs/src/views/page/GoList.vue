@@ -29,6 +29,7 @@
       <div
         v-show="loading"
         class="has-text-centered no-content"
+        :style="'background: url('+loadImage+') no-repeat 50% 50%;height: 240px;line-height: 240px;text-align: center;margin-top: 20px;'"
       ></div>
     </div>
     <div
@@ -66,7 +67,6 @@ import {
   formatFileSize,
   checkoutPath,
   checkView,
-  checkExtends,
 } from "@utils/AcrouUtil";
 import { mapState } from "vuex";
 import BreadCrumb from "../common/BreadCrumb";
@@ -88,6 +88,10 @@ export default {
     return {
       infiniteId: +new Date(),
       loading: true,
+      windowWidth: window.innerWidth,
+      screenWidth: screen.width,
+      ismobile: false,
+      loadImage: "",
       page: {
         page_token: null,
         page_index: 0,
@@ -132,6 +136,12 @@ export default {
     };
   },
   mounted() {
+    this.checkMobile();
+    if(window.themeOptions.loading_image){
+      this.loadImage = window.themeOptions.loading_image;
+    } else {
+      this.loadImage = "https://i.ibb.co/bsqHW2w/Lamplight-Mobile.gif"
+    }
     if(window.themeOptions.render.readme_md){
       this.readmeLink = window.themeOptions.render.readme_md_link;
     } else {
@@ -149,14 +159,6 @@ export default {
       return this.files.filter(
         (file) => file.mimeType.indexOf("image") != -1
       );
-    },
-    ismobile() {
-      var width = window.innerWidth > 0 ? window.innerWidth : screen.width;
-      if(width > 966){
-        return false
-      } else {
-        return true
-      }
     },
     renderHeadMD() {
       return window.themeOptions.render.head_md || false;
@@ -278,6 +280,14 @@ export default {
           });
         });
     },
+    checkMobile() {
+      var width = this.windowWidth > 0 ? this.windowWidth : this.screenWidth;
+      if(width > 966){
+        this.ismobile = false
+      } else {
+        this.ismobile = true
+      }
+    },
     thum(url) {
       return url ? `/${this.$route.params.id}:view?url=${url}` : "";
     },
@@ -302,18 +312,6 @@ export default {
     },
     target(file, target) {
       let path = file.path;
-      if (target === "_blank") {
-        window.open(path);
-        return;
-      }
-      if (target === "copy") {
-        this.copy(path);
-        return;
-      }
-      if (target === "down" || (!checkExtends(path) && !file.isFolder)) {
-        location.href = path.replace(/^\/(\d+:)\//, "/$1down/");
-        return;
-      }
       if (target === "view") {
         this.$router.push({
           path: checkView(path),
@@ -370,5 +368,23 @@ export default {
       return "#" + (this.icon[type] ? this.icon[type] : "icon-weizhi");
     },
   },
+  watch: {
+    screenWidth: function() {
+      var width = this.windowWidth > 0 ? this.windowWidth : this.screenWidth;
+      if(width > 966){
+        this.ismobile = false
+      } else {
+        this.ismobile = true
+      }
+    },
+    windowWidth: function() {
+      var width = this.windowWidth > 0 ? this.windowWidth : this.screenWidth;
+      if(width > 966){
+        this.ismobile = false
+      } else {
+        this.ismobile = true
+      }
+    },
+  }
 };
 </script>

@@ -14,6 +14,7 @@ const frameIn = [{
       ...meta,
       view: 'text',
       requiresAuth: true,
+      hybrid: true,
     }
   },
   {
@@ -24,6 +25,7 @@ const frameIn = [{
       ...meta,
       view: 'pdf',
       requiresAuth: true,
+      hybrid: true,
     }
   },
   {
@@ -33,6 +35,7 @@ const frameIn = [{
     meta: {
       ...meta,
       redirect: true,
+      hybrid: true,
     }
   },
   {
@@ -43,6 +46,7 @@ const frameIn = [{
       ...meta,
       view: 'video',
       requiresAuth: true,
+      hybrid: true,
     }
   },
   {
@@ -53,6 +57,7 @@ const frameIn = [{
       ...meta,
       view: 'audio',
       requiresAuth: true,
+      hybrid: true,
     }
   },
   {
@@ -63,6 +68,7 @@ const frameIn = [{
       ...meta,
       view: 'image',
       requiresAuth: true,
+      hybrid: true,
     }
   },
   {
@@ -73,6 +79,7 @@ const frameIn = [{
       ...meta,
       view: 'list',
       requiresAuth: true,
+      hybrid: true,
     }
   },
   {
@@ -83,6 +90,18 @@ const frameIn = [{
       ...meta,
       view: 'list',
       requiresAuth: true,
+      hybrid: true,
+    }
+  },
+  {
+    path: "/:id(\\d)::cmd(others)/:path",
+    name: 'otherFiles',
+    component: _import("page/GoOthers"),
+    meta: {
+      ...meta,
+      view: 'list',
+      requiresAuth: true,
+      hybrid: true,
     }
   },
   {
@@ -91,7 +110,8 @@ const frameIn = [{
       component: _import("page/static/Users/Login"),
       meta: {
           ...meta,
-          guest: true
+          guest: true,
+          hybrid: true,
       }
   },
   {
@@ -101,7 +121,8 @@ const frameIn = [{
       meta: {
           ...meta,
           requiresAuth: true,
-          admin: true
+          admin: true,
+          hybrid: false,
       }
   },
   {
@@ -111,7 +132,8 @@ const frameIn = [{
       meta: {
           ...meta,
           requiresAuth: true,
-          admin: true
+          admin: true,
+          hybrid: false,
       }
   },
   {
@@ -121,6 +143,7 @@ const frameIn = [{
       meta: {
           ...meta,
           guest: true,
+          hybrid: false,
       }
   },
   {
@@ -131,6 +154,7 @@ const frameIn = [{
           ...meta,
           guest: true,
           allow: true,
+          hybrid: true,
       }
   },
   {
@@ -141,6 +165,7 @@ const frameIn = [{
           ...meta,
           guest: true,
           allow: true,
+          hybrid: true,
       }
   },
   {
@@ -150,6 +175,7 @@ const frameIn = [{
       meta: {
           ...meta,
           guest: true,
+          hybrid: false,
       }
   },
   {
@@ -159,6 +185,7 @@ const frameIn = [{
       meta: {
           ...meta,
           requiresAuth: true,
+          hybrid: false,
       }
   },
   {
@@ -168,6 +195,7 @@ const frameIn = [{
       meta: {
           ...meta,
           requiresAuth: true,
+          hybrid: false,
       }
   },
   {
@@ -178,6 +206,7 @@ const frameIn = [{
           ...meta,
           requiresAuth: true,
           admin: true,
+          hybrid: false,
       }
   },
   {
@@ -188,6 +217,7 @@ const frameIn = [{
           ...meta,
           requiresAuth: true,
           admin: true,
+          hybrid: false,
       }
   },
   {
@@ -198,6 +228,7 @@ const frameIn = [{
           ...meta,
           requiresAuth: true,
           admin: true,
+          hybrid: false,
       }
   },
   {
@@ -207,6 +238,7 @@ const frameIn = [{
       meta: {
           ...meta,
           requiresAuth: true,
+          hybrid: false,
       }
   },
   {
@@ -215,7 +247,8 @@ const frameIn = [{
       component: _import("page/static/Users/DeleteMe"),
       meta: {
           ...meta,
-          requiresAuth: true
+          requiresAuth: true,
+          hybrid: false,
       }
   },
 ];

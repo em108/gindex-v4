@@ -1,5 +1,5 @@
 <template>
-  <nav class="navbar has-background-black" role="navigation" aria-label="main navigation" :style="{background: navbarStyle}">
+  <nav class="navbar" role="navigation" aria-label="main navigation" :style=" netflix_black ? 'background-color: #222222' : 'background-color: black;'">
     <div class="container">
       <div class="loading">
         <loading :active.sync="loading" :can-cancel="false" :is-full-page="fullpage"></loading>
@@ -181,6 +181,11 @@ export default {
       this.loginorout();
       this.changeNavbarStyle()
     })
+    this.$bus.$on('td', () => {
+      this.quicklinks = window.quickLinks.filter((links) => {
+        return links.root == this.gdindex
+      })[0].link;
+    })
     this.loginorout();
     this.active = false;
     this.siteName = document.getElementsByTagName("title")[0].innerText;
@@ -207,6 +212,7 @@ export default {
       currgd: {},
       loading: false,
       navbarStyle: "",
+      netflix_black: false,
       mouseover: false,
       backgroundClass: "",
       fullpage: true,
@@ -231,6 +237,7 @@ export default {
       }
     },
     changeItem(item) {
+      this.$bus.$emit("td", "TD Changed");
       this.currgd = item;
       this.$router.push({
         path: '/'+item.index+':home/',
@@ -253,7 +260,22 @@ export default {
     loginorout() {
       var token = localStorage.getItem("tokendata");
       var user = localStorage.getItem("userdata");
-      if (user != null && token != null){
+      var hyBridToken = localStorage.getItem("hybridToken");
+      console.log(hyBridToken);
+      if(hyBridToken && hyBridToken != null || hyBridToken != undefined){
+        const hybridData = JSON.parse(this.$hash.AES.decrypt(hyBridToken, this.$pass).toString(this.$hash.enc.Utf8))
+        console.log(hybridData);
+        if(hybridData.user){
+          this.user = hybridData;
+          this.logged = true;
+          this.admin = false;
+          this.superadmin = false;
+          this.loading = false;
+        } else {
+          localStorage.removeItem("hybridToken");
+          this.gotoPage("/", "login")
+        }
+      } else if (user != null && token != null){
         var userData = JSON.parse(this.$hash.AES.decrypt(user, this.$pass).toString(this.$hash.enc.Utf8));
         if(userData.admin && !userData.superadmin){
           this.user = userData;
@@ -288,14 +310,24 @@ export default {
       }, 500)
     },
     logout() {
+      this.loading = true;
       this.isActive = !this.isActive;
       var token = localStorage.getItem("tokendata")
       var user = localStorage.getItem("userdata");
-      if (user != null && token != null){
+      var hyBridToken = localStorage.getItem("hybridToken");
+      if(hyBridToken && hyBridToken != null || hyBridToken != undefined){
+        localStorage.removeItem("hybridToken");
+        this.$bus.$emit("logout", "User Logged Out");
+        this.loading = false;
+        this.$router.push({ name: 'results' , params: { id: this.gdindex, cmd: "result", success:true, data: "You are Being Logged Out. Please Wait", redirectUrl: '/', tocmd:'home' } })
+      } else if (user != null && token != null){
         localStorage.removeItem("tokendata");
         localStorage.removeItem("userdata");
         this.$bus.$emit("logout", "User Logged Out");
+        this.loading = false;
         this.$router.push({ name: 'results' , params: { id: this.gdindex, cmd: "result", success:true, data: "You are Being Logged Out. Please Wait", redirectUrl: '/', tocmd:'home' } })
+      } else {
+        this.loading = false;
       }
     },
     changeNavbarStyle() {
@@ -323,6 +355,7 @@ export default {
     }
   },
   mounted() {
+    this.netflix_black = window.themeOptions.prefer_netflix_black
     this.quicklinks = window.quickLinks.filter((links) => {
       return links.root == this.gdindex
     })[0].link;

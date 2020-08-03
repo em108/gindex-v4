@@ -1,13 +1,16 @@
 <template>
-  <div :class="ismobile ? 'content nopad mt-2 mx-0 px-0 mt-2' : 'content nopad mt-2 mt-2 ml-5 mr-5'">
+  <div :class="ismobile ? 'content nopad mt-2 mx-1 px-1 mt-2' : 'content nopad mt-2 mt-2 ml-5 mr-5'">
+    <div class="loading">
+      <loading :active.sync="mainLoad" :can-cancel="false" :is-full-page="fullpage"></loading>
+    </div>
     <div class="columns is-multiline is-centered">
-      <div class="column is-two-thirds">
+      <div :class="ismobile ? 'column is-full mx-0 px-1' : 'column is-two-thirds'">
         <div class="columns is-desktop is-multiline is-centered">
           <div class="column is-full">
             <vue-plyr ref="plyr">
-              <video :src="apiurl" class="video-content">
-                <source :src="apiurl" type="video/mp4" size="720">
-                <source :src="apiurl" type="video/mp4" size="1080">
+              <video :poster="poster" :src="apiurl" class="video-content">
+                <source :src="apiurl" type="video/mp4" size="Original Format">
+                <track kind="captions" :label="suburl.label" :src="suburl.url" :srclang="suburl.label" default />
               </video>
             </vue-plyr>
             <div class="box has-background-black">
@@ -15,18 +18,18 @@
                 <div class="column is-1">
                   <div class="columns is-desktop is-multiline has-text-white is-centered is-vcentered">
                     <div class="column is-full">
-                      <p class="subtitle has-text-weight-bold has-text-warning"><i class="fas fa-video"></i></p>
+                      <p class="subtitle has-text-weight-bold has-text-netflix-only"><i class="fas fa-video"></i></p>
                     </div>
                   </div>
                 </div>
                 <div :class="ismobile ? 'column is-11' : 'column is-7'">
-                    <p class="subtitle has-text-white has-text-weight-bold"> {{ videoname }}</p>
+                    <p class="subtitle has-text-white has-text-weight-bold"> {{ videoname.split('.').slice(0,-1).join('.') }}</p>
                 </div>
-                <div :class="ismobile ? 'column is-hidden title has-text-weight-semibold has-text-success has-text-right is-4' : 'column title has-text-weight-semibold has-text-success has-text-right is-4'">
-                  <span class="icon is-medium">
+                <div :class="ismobile ? 'column is-hidden title has-text-weight-semibold has-text-right is-4' : 'column title has-text-weight-semibold has-text-right is-4'">
+                  <span class="icon has-text-netflix-only is-medium">
                     <i :class="playicon"></i>
                   </span>
-                  <span class="subtitle has-text-success ml-2">{{ playtext }}</span>
+                  <span class="subtitle has-text-netflix-only ml-2">{{ playtext }}</span>
                 </div>
               </div>
             </div>
@@ -60,27 +63,64 @@
               </section>
             </div>
           </div>
+          <div :class="subModal ? 'modal is-active' : 'modal'">
+            <div class="modal-background"></div>
+            <div class="modal-card">
+              <header class="modal-card-head">
+                <p class="modal-card-title">Load Subtitle File</p>
+                <button class="delete" @click="subModal = false;" aria-label="close"></button>
+              </header>
+              <section class="modal-card-body">
+                <article :class=" successMessage ? 'message is-success' : 'message is-hidden is-success'">
+                  <div class="message-body">
+                    <button class="delete" @click="successMessage = false" aria-label="delete"></button>
+                    {{ resultmessage }}
+                  </div>
+                </article>
+                <div class="field">
+                  <div class="control">
+                    <input :class=" subButLoad ? 'input is-success is-loading' : 'input is-success' " v-model="subripurl" type="text" :placeholder="'Enter Any Url or Give Path from Drive'">
+                  </div>
+                </div>
+                <div class="content">
+                  <li>Note: Only Give Valid Url's otherwise this page will get Hanged on Sent Back.</li>
+                  <li>If You Want to Give drive Path, Give in this Format: <b><i>folder/sub-folder1/sub-folder2</i></b> from Root Folder.</li>
+                </div>
+              </section>
+              <footer class="modal-card-foot">
+                <button :class=" subButLoad ? 'button is-loading is-success' : 'button is-success' " @click="loadCustomSub(subripurl)">Save changes</button>
+              </footer>
+            </div>
+          </div>
           <div class="column is-full">
-            <div class="box has-text-centered has-background-dark">
+            <div class="box has-text-centered has-background-black">
               <div class="columns is-centered is-vcentered is-multiline">
-                <div class="column is-2">
-                  <button class="button is-success is-rounded" v-clipboard:copy="videourl">
+                <div class="column is-quarter">
+                  <button class="button is-netflix-red is-rounded" v-clipboard:copy="externalUrl">
                     <span class="icon is-small">
                       <i class="fa fa-copy"></i>
                     </span>
-                    <span>Share Link</span>
+                    <span>{{ ismobile ? 'Share Link' : 'Stream Link'}}</span>
                   </button>
                 </div>
-                <div class="column is-4">
-                  <button class="button is-success is-rounded" @click="modal=true;">
+                <div class="column is-quarter">
+                  <button class="button is-netflix-red is-rounded" @click="subModal=true;">
+                    <span class="icon">
+                      <i class="fa fa-upload"></i>
+                    </span>
+                    <span>Load Subtitles</span>
+                  </button>
+                </div>
+                <div v-if="ismobile" class="column is-quarter">
+                  <button class="button is-netflix-red is-rounded" @click="modal=true;">
                     <span class="icon">
                      <i class="fas fa-play"></i>
                    </span>
                    <span>External Players</span>
                   </button>
                 </div>
-                <div class="column is-2">
-                  <button class="button is-danger is-rounded" @click="downloadButton">
+                <div class="column is-quarter">
+                  <button class="button is-netflix-red is-rounded" @click="downloadButton">
                     <span class="icon">
                      <i class="fas fa-download"></i>
                    </span>
@@ -92,9 +132,18 @@
           </div>
         </div>
       </div>
-      <div class="column is-one-third golist" v-loading="loading">
-        <h2 class="title has-text-centered has-text-weight-bold has-text-warning"><i class="fas fa-film"></i>  Continue Your Binge !</h2>
-        <hr>
+      <div :class="ismobile ? 'column is-centered is-vcentered is-one-third is-desktop golist' : 'column is-desktop is-centered is-vcentered is-one-third golist mt-4'" v-loading="loading">
+        <div class="column is-full">
+          <div class="columns is-mobile is-multiline is-centered is-vcentered">
+            <div class="column is-two-thirds">
+              <h2 class="title has-text-weight-bold has-text-danger">Continue Your Binge</h2>
+            </div>
+            <div class="column is-one-third">
+              <h6 class="subtitle has-text-right has-text-grey">Found {{ this.files ? this.files.length - 1 : "0" }} Results</h6>
+            </div>
+          </div>
+        </div>
+        <div class="column is-full">
           <div class="columns has-background-dark suggestList is-multiline is-mobile is-centered is-vcentered" v-for="(file, index) in getFilteredFiles" v-bind:key="index" @click="action(file,'view')">
             <div class="column is-2">
               <svg class="iconfont" style="font-size: 20px">
@@ -123,18 +172,20 @@
               </div>
             </div>
           </div>
-          <infinite-loading
-            v-show="!loading"
-            ref="infinite"
-            spinner="bubbles"
-            @infinite="infiniteHandler"
-          >
+        </div>
+        <infinite-loading
+          v-show="!loading"
+          ref="infinite"
+          spinner="bubbles"
+          @infinite="infiniteHandler"
+        >
           <div slot="no-more"></div>
           <div slot="no-results"></div>
         </infinite-loading>
         <div
           v-show="loading"
           class="has-text-centered no-content"
+          :style="'background: url('+loadImage+') no-repeat 50% 50%;height: 240px;line-height: 240px;text-align: center;margin-top: 20px;'"
           >
         </div>
       </div>
@@ -150,23 +201,47 @@ import {
   checkView,
   checkExtends,
 } from "@utils/AcrouUtil";
+import Loading from 'vue-loading-overlay';
 import InfiniteLoading from "vue-infinite-loading";
 import { mapState } from "vuex";
-import { decode64 } from "@utils/AcrouUtil";
+import { decode64, srt2vtt } from "@utils/AcrouUtil";
+
 export default {
   components: {
     InfiniteLoading,
+    Loading
   },
   data: function() {
     return {
       apiurl: "",
+      externalUrl: "",
+      downloadUrl: "",
       videourl: "",
+      poster: "",
+      windowWidth: window.innerWidth,
+      screenWidth: screen.width,
+      mainLoad: false,
+      fullpage: true,
+      ismobile: false,
+      user: {},
+      token: {},
+      mediaToken: "",
       modal: false,
       infiniteId: +new Date(),
       loading: true,
+      suburl: {},
+      sub: false,
+      subModal: false,
+      subButLoad: false,
+      subripurl: "",
+      successMessage: false,
+      resultmessage: "",
       playicon: "fas fa-spinner fa-pulse",
       playtext: "Loading Stuffs....",
       videoname: "",
+      loadImage: "",
+      gds: [],
+      currgd: {},
       page: {
         page_token: null,
         page_index: 0,
@@ -217,8 +292,10 @@ export default {
             };
             if ($state) {
               this.files.push(...this.buildFiles(data.files));
+              this.getPoster();
             } else {
               this.files = this.buildFiles(data.files);
+              this.getPoster();
             }
           }
           if (body.nextPageToken) {
@@ -279,16 +356,121 @@ export default {
 
       return array
     },
+    checkMobile() {
+      var width = this.windowWidth > 0 ? this.windowWidth : this.screenWidth;
+      if(width > 966){
+        this.ismobile = false
+      } else {
+        this.ismobile = true
+      }
+    },
+    checkSuburl() {
+      const toks = this.videoname.split('.');
+      const pathSansExt = toks.slice(0, -1).join('.');
+      const regext = new RegExp(`(?<name>${pathSansExt})`+'\\.(?<label>[\\s\\S\\D]+)\\.(?<format>srt|vtt)');
+      return this.files.forEach(async (item) => {
+         if(item.name == pathSansExt + ".srt" || item.name == pathSansExt + ".vtt"){
+           let url = item.path+"?player=internal"+"&token="+this.token.token+"&email="+this.user.email;
+           let blob = await this.getSrtFile(url);
+           if(blob.success){
+             this.sub = true;
+             this.suburl = {url: blob.blobData, label: "Default"};
+           } else {
+             this.sub = false;
+             this.suburl = {};
+           }
+         } else if(regext.test(item.name)){
+           let groups = regext.exec(item.name).groups;
+           console.log(groups)
+           let url = item.path+"?player=internal"+"&token="+this.token.token+"&email="+this.user.email;
+           let blob = await this.getSrtFile(url);
+           if(blob.success){
+             this.sub = true;
+             this.suburl = {url: blob.blobData, label: groups.label};
+           } else {
+             this.sub = false;
+             this.suburl = {};
+           }
+         } else {
+           this.sub = false;
+           this.suburl = {};
+         }
+      });
+    },
+    async getSrtFile(url) {
+      try {
+        const srt = await this.$http.get(url);
+        const blob = new Blob([srt2vtt(srt.data)], { type: 'text/vtt' })
+        var srtBlob = URL.createObjectURL(blob);
+        return {
+          blobData: srtBlob,
+          success: true
+        };
+      } catch(e) {
+        return {
+          blobData: null,
+          success: false
+        };
+      }
+    },
+    async loadCustomSub(url) {
+      this.subButLoad = true;
+      const urlRegex = /(http:\/\/|https:\/\/[\s\S]+)/;
+      if(urlRegex.test(url)){
+        let blob = await this.getSrtFile(url);
+        if(blob.success){
+          this.suburl = {url: blob.blobData, label: "default"};
+          this.successMessage = true;
+          this.resultmessage = "Subtitle Loaded Successfully !"
+          this.subButLoad = false;
+          setTimeout(() => {
+            this.subModal = false;
+          }, 300);
+        } else {
+          this.successMessage = true;
+          this.resultmessage = "Error Loading the Subtitle. Please Check Your Link."
+          this.subButLoad = false;
+        }
+      } else {
+        let getUrl = "/"+this.currgd.id+":/"+url+"?player=internal"+"&token="+this.token.token+"&email="+this.user.email;
+        let blob = await this.getSrtFile(getUrl);
+        if(blob.success){
+          this.suburl = {url: blob.blobData, label: "default"};
+          this.successMessage = true;
+          this.resultmessage = "Subtitle Loaded Successfully !"
+          this.subButLoad = false;
+          setTimeout(() => {
+            this.subModal = false;
+          }, 300);
+        } else {
+          this.successMessage = true;
+          this.resultmessage = "Error Loading the Subtitle. Please Check Your Link."
+          this.subButLoad = false;
+        }
+      }
+    },
+    thum(url) {
+      return url ? `/${this.$route.params.id}:view?url=${url}` : "";
+    },
     downloadButton() {
-      window.open(this.videourl);
+      location.href = this.downloadUrl;
+      return;
     },
     getVideourl() {
       // Easy to debug in development environment
       this.videourl = window.location.origin + encodeURI(this.url);
-      this.apiurl = this.videourl;
+      this.apiurl = this.videourl+"?player=internal"+"&email="+this.user.email+"&token="+this.token.token;
+      this.externalUrl = this.videourl+"?player=external"+"&email="+this.user.email+"&token="+this.mediaToken;
+      this.downloadUrl = this.videourl+"?player=download"+"&email="+this.user.email+"&token="+this.mediaToken;
     },
     getIcon(type) {
       return "#" + (this.icon[type] ? this.icon[type] : "icon-weizhi");
+    },
+    getPoster() {
+      var data = this.files.filter((file) => {
+        return file.name == this.videoname
+      })[0].thumbnailLink;
+      this.poster = data;
     },
     action(file, target) {
       if (file.mimeType.indexOf("image") != -1) {
@@ -334,25 +516,15 @@ export default {
       }
     },
   },
-  activated() {
-    this.getVideourl();
-    this.render();
-  },
   computed: {
     getFilteredFiles() {
-      return this.shuffle(this.files).filter(file => {
+      this.checkSuburl();
+      const videoRegex = /(video)\/(.+)/
+      return this.files.filter(file => {
         return file.name != this.url.split('/').pop();
       }).filter(file => {
-        return file.mimeType == "video/mp4" || "video/x-matroska" || "video/x-msvideo" || "video/webm"
-      }).slice(0,15);
-    },
-    ismobile() {
-      var width = window.innerWidth > 0 ? window.innerWidth : screen.width;
-      if(width > 966){
-        return false
-      } else {
-        return true
-      }
+        return videoRegex.test(file.mimeType);
+      });
     },
     url() {
       if (this.$route.params.path) {
@@ -366,17 +538,17 @@ export default {
         {
           name: "IINA",
           icon: this.$cdnpath("images/player/iina.png"),
-          scheme: "iina://weblink?url=" + this.videourl,
+          scheme: "iina://weblink?url=" + this.externalUrl,
         },
         {
           name: "PotPlayer",
           icon: this.$cdnpath("images/player/potplayer.png"),
-          scheme: "potplayer://" + this.videourl,
+          scheme: "potplayer://" + this.externalUrl,
         },
         {
           name: "VLC",
           icon: this.$cdnpath("images/player/vlc.png"),
-          scheme: "vlc://" + this.videourl,
+          scheme: "vlc://" + this.externalUrl,
         },
         {
           name: "Thunder",
@@ -391,14 +563,14 @@ export default {
         {
           name: "nPlayer",
           icon: this.$cdnpath("images/player/nplayer.png"),
-          scheme: "nplayer-" + this.videourl,
+          scheme: "nplayer-" + this.externalUrl,
         },
         {
           name: "MXPlayer(Free)",
           icon: this.$cdnpath("images/player/mxplayer.png"),
           scheme:
             "intent:" +
-            this.videourl +
+            this.externalUrl +
             "#Intent;package=com.mxtech.videoplayer.ad;S.title=" +
             this.title +
             ";end",
@@ -408,7 +580,7 @@ export default {
           icon: this.$cdnpath("images/player/mxplayer.png"),
           scheme:
             "intent:" +
-            this.videourl +
+            this.externalUrl +
             "#Intent;package=com.mxtech.videoplayer.pro;S.title=" +
             this.title +
             ";end",
@@ -416,19 +588,93 @@ export default {
       ];
     },
     getThunder() {
-      return Buffer.from("AA" + this.videourl + "ZZ").toString("base64");
+      return Buffer.from("AA" + this.externalUrl + "ZZ").toString("base64");
     },
   },
+  created() {
+    if (window.gds) {
+      this.gds = window.gds.map((item, index) => {
+        return {
+          name: item,
+          id: index,
+        };
+      });
+      let index = this.$route.params.id;
+      if (this.gds) {
+        this.currgd = this.gds[index];
+      }
+    }
+  },
+  beforeMount() {
+    this.mainLoad = true;
+    var user = localStorage.getItem("userdata");
+    var token = localStorage.getItem("tokendata");
+    if(user && token){
+      var tokenData = JSON.parse(this.$hash.AES.decrypt(token, this.$pass).toString(this.$hash.enc.Utf8));
+      var userData = JSON.parse(this.$hash.AES.decrypt(user, this.$pass).toString(this.$hash.enc.Utf8));
+      this.user = userData, this.token = tokenData;
+      this.$http.post(window.apiRoutes.mediaTokenTransmitter, {
+        email: userData.email,
+        token: tokenData.token,
+      }).then(response => {
+        if(response.data.auth && response.data.registered && response.data.token){
+          this.mainLoad = false;
+          this.mediaToken = response.data.token;
+          this.getVideourl();
+        } else {
+          this.mainLoad = false;
+          this.mediaToken = "";
+        }
+      }).catch(e => {
+        console.log(e);
+        this.mainLoad = false;
+        this.mediaToken = "";
+      })
+    } else {
+      this.user = null, this.token = null, this.mainLoad = false;
+    }
+  },
   mounted() {
+    this.checkMobile();
+    this.render();
+    if(window.themeOptions.loading_image){
+      this.loadImage = window.themeOptions.loading_image;
+    } else {
+      this.loadImage = "https://i.ibb.co/bsqHW2w/Lamplight-Mobile.gif"
+    }
     this.player = this.$refs.plyr.player
     this.videoname = this.url.split('/').pop();
   },
   watch: {
+    screenWidth: function() {
+      var width = this.windowWidth > 0 ? this.windowWidth : this.screenWidth;
+      if(width > 966){
+        this.ismobile = false
+      } else {
+        this.ismobile = true
+      }
+    },
+    windowWidth: function() {
+      var width = this.windowWidth > 0 ? this.windowWidth : this.screenWidth;
+      if(width > 966){
+        this.ismobile = false
+      } else {
+        this.ismobile = true
+      }
+    },
     player: function(){
       this.player.on('ready', () => {
         this.playicon="fas fa-glasses";
         this.playtext="Ready to Play !"
       });
+      this.player.on('loadstart', () => {
+        this.playicon = "fas fa-spinner fa-pulse";
+        this.playtext = "Loading Awesomeness..";
+      })
+      this.player.on('canplay', () => {
+        this.playicon="fas fa-glasses";
+        this.playtext="Let's Party"
+      })
       this.player.on('play', () => {
         this.playicon="fas fa-spin fa-compact-disc";
         this.playtext="Playing"

@@ -1,5 +1,5 @@
 <template>
-  <div id="app" class="box has-background-black mx-0 my-0 px-0 py-0">
+  <div id="app" class="mx-0 my-0 px-0 py-0" :style=" netflix_black ? 'background-color: #222222' : 'background-color: black;'">
     <Layout ref="layout" />
   </div>
 </template>
@@ -16,6 +16,7 @@ export default {
   data: function() {
     return {
       github: "https://github.com/tks18/gindex-v4",
+      netflix_black: false,
     };
   },
   watch: {
@@ -23,14 +24,22 @@ export default {
   },
   created() {
     this.i18nHandle(this.$i18n.locale);
+    this.delTemps();
   },
   mounted() {
     // this.checkVersion();
+    this.netflix_black = window.themeOptions.prefer_netflix_black
   },
   methods: {
     i18nHandle(val) {
       util.cookies.set("lang", val);
       document.querySelector("html").setAttribute("lang", val);
+    },
+    delTemps() {
+      window.addEventListener('beforeunload', () => {
+        localStorage.removeItem("hybridToken");
+        localStorage.removeItem("sessionStore");
+      });
     },
     checkVersion() {
       let g2index_version = window.gdconfig.version;
