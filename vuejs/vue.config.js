@@ -61,7 +61,7 @@ module.exports = {
         }),
         new JavaScriptObfuscator({
             compact: true,
-            disableConsoleOutput: true,
+            disableConsoleOutput: false,
             numbersToExpressions: true,
             rotateStringArray: true,
             selfDefending: true,
@@ -76,6 +76,11 @@ module.exports = {
   },
 
   chainWebpack: (config) => {
+    config.module
+      .rule('worker')
+      .test(/\.worker\.js$/)
+      .use('worker-loader').loader('worker-loader')
+      .end()
     config.plugin("BuildAppJSPlugin").use(BuildAppJSPlugin);
     /**
       * Add CDN parameter to htmlWebpackPlugin configuration
