@@ -2,7 +2,7 @@
 var authConfig = {
   siteName: "meindex",
   hybridpass: "Copy Hybrid Password Generated from Backend",
-  version: "v7.9.1",
+  version: "v7.9.6",
   frontendUrl: "https://glorytoheaven.tk",
   github_name: "tks18",
   github_repo: "gindex-v4",
@@ -221,6 +221,7 @@ var routes = {
   deleteAdmin: authConfig.backendSite + '/delete/admin',
   mediaTokenTransmitter: authConfig.backendSite + '/user/media/transmit',
   mediaTokenVerify: authConfig.backendSite + '/user/media/verify',
+  forgotPass: authConfig.backendSite + '/user/forgotpass',
   getUsers: authConfig.backendSite + '/get/users',
   getAll: authConfig.backendSite + '/get/all',
   getAdmins: authConfig.backendSite + '/get/admins',
