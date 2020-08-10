@@ -39,11 +39,25 @@
     </div>
 </template>
 <script>
+import { initializeUser, getgds } from "@utils/localUtils";
+import { removeItem } from "@utils/encryptUtils";
 import Loading from 'vue-loading-overlay';
 import 'vue-loading-overlay/dist/vue-loading.css';
 export default {
     components: {
       Loading
+    },
+    metaInfo() {
+      return {
+        title: this.metatitle,
+        titleTemplate: (titleChunk) => {
+          if(titleChunk && this.currgd.name){
+            return titleChunk ? `${titleChunk} | ${this.currgd.name}` : `${this.currgd.name}`;
+          } else {
+            return "Loading..."
+          }
+        }
+      }
     },
         props : ["nextUrl"],
         data(){
@@ -52,6 +66,7 @@ export default {
                 password : "",
                 gds: [],
                 currgd: {},
+                metatitle: "Delete Your Account",
                 resultmessage: "",
                 disabled: true,
                 errorMessage: false,
@@ -61,6 +76,7 @@ export default {
         },
         methods : {
             handleSubmit(e) {
+              this.metatitle = "Deleting in Progress..";
               this.loading = true;
                 e.preventDefault()
                 if (this.password && this.password.length > 0)
@@ -73,17 +89,21 @@ export default {
                     .then(response => {
                         if(response){
                           if(response.data.auth && response.data.registered && response.data.deleted){
+                            this.metatitle = "Deletion Success";
                             this.resultmessage = response.data.message
-                            localStorage.removeItem('userdata');
-                            localStorage.removeItem('tokendata');
+                            this.$ga.event({eventCategory: "Delete Personal",eventAction: "Success"+" - "+this.currgd.name,eventLabel: "Delete Me"})
+                            removeItem('userdata');
+                            removeItem('tokendata');
                             setTimeout(() => {
                               this.loading = false;
                               this.$bus.$emit("logout", "User Logged Out");
                               this.$router.push({ name: 'results', params: { id: this.currgd.id, cmd: "result", success: true, data: "You Account is Being Deleted. Please Wait", redirectUrl: "/", tocmd: 'home' } })
                             }, 1500)
                           } else {
+                            this.metatitle = "Deletion Failed";
                             this.errorMessage = true;
                             this.loading = false;
+                            this.$ga.event({eventCategory: "Delete Personal",eventAction: "Fail"+" - "+this.currgd.name,eventLabel: "Delete Me"})
                             this.resultmessage = response.data.message
                           }
                         }
@@ -110,28 +130,31 @@ export default {
           },
         },
         beforeMount() {
-          var user = localStorage.getItem("userdata");
-          var token = localStorage.getItem("tokendata");
-          if(user && token){
-            var userData = JSON.parse(this.$hash.AES.decrypt(user, this.$pass).toString(this.$hash.enc.Utf8));
-            this.user = userData, this.loading = false;
+          this.loading = true;
+          var userData = initializeUser();
+          if(userData.isThere){
+            if(userData.type == "hybrid"){
+              this.$ga.event({eventCategory: "User Initialized",eventAction: "Hybrid",eventLabel: "Delete Personal",nonInteraction: true})
+              this.user = userData.data.user;
+              this.loading = userData.data.loading;
+            } else if(userData.type == "normal"){
+              this.$ga.event({eventCategory: "User Initialized",eventAction: "Normal",eventLabel: "Delete Personal",nonInteraction: true})
+              this.user = userData.data.user;
+              this.loading = userData.data.loading;
+            }
           } else {
-            this.user = null, this.loading = false;
+            this.loading = userData.data.loading;
           }
         },
         created() {
-          if (window.gds) {
-            this.gds = window.gds.map((item, index) => {
-              return {
-                name: item,
-                id: index,
-              };
-            });
-            let index = this.$route.params.id;
-            if (this.gds) {
-              this.currgd = this.gds[index];
-            }
-          }
+          let gddata = getgds(this.$route.params.id);
+          this.gds = gddata.gds;
+          this.currgd = gddata.current;
+          this.$ga.page({
+            page: this.$route.path,
+            title: "Delete Me"+" - "+this.currgd.name,
+            location: window.location.href
+          });
         },
         watch: {
           password: function() {

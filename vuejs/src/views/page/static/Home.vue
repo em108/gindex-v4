@@ -231,11 +231,29 @@
   </section>
 </template>
 <script>
+import {
+  initializeUser,
+  getgds,
+  scrollTo,
+  shuffle
+} from "@utils/localUtils";
 import Loading from 'vue-loading-overlay';
 import 'vue-loading-overlay/dist/vue-loading.css';
     export default {
         components: {
           Loading,
+        },
+        metaInfo() {
+          return {
+            title: this.logged ? "Home" : "Welcome",
+            titleTemplate: (titleChunk) => {
+              if(titleChunk && this.currgd.name){
+                return titleChunk ? `${titleChunk} | ${this.currgd.name}` : `${this.currgd.name}`;
+              } else {
+                return "Loading..."
+              }
+            }
+          }
         },
         data () {
             return {
@@ -265,6 +283,7 @@ import 'vue-loading-overlay/dist/vue-loading.css';
         },
         methods: {
           gotoPage(url, cmd) {
+            this.$ga.event({eventCategory: "Page Navigation",eventAction: url+" - "+this.currgd.name,eventLabel: "Home"})
             if(cmd){
               this.$router.push({ path: '/'+ this.currgd.id + ':' + cmd + url })
             } else {
@@ -273,43 +292,29 @@ import 'vue-loading-overlay/dist/vue-loading.css';
           },
           assignUserInfo() {
             this.loading = true;
-            var token = localStorage.getItem("tokendata");
-            var user = localStorage.getItem("userdata");
-            var hyBridToken = localStorage.getItem("hybridToken");
-            if(hyBridToken && hyBridToken != null || hyBridToken != undefined){
-              const hybridData = JSON.parse(this.$hash.AES.decrypt(hyBridToken, this.$pass).toString(this.$hash.enc.Utf8))
-              if(hybridData.user){
-                this.user = hybridData;
-                this.logged = true;
-                this.loading = false;
-              } else {
-                this.logged = false;
-                this.loading = false;
-                localStorage.removeItem("hybridToken");
-                this.gotoPage("/", "login")
+            var userData = initializeUser();
+            if(userData.isThere){
+              if(userData.type == "hybrid"){
+                this.user = userData.data.user;
+                this.logged = userData.data.logged;
+                this.loading = userData.data.loading;
+                this.$meta().refresh
+                this.$ga.event({eventCategory: "User Initialized",eventAction: "Hybrid",eventLabel: "Home",nonInteraction: true})
+              } else if(userData.type == "normal"){
+                this.user = userData.data.user;
+                this.token = userData.data.token;
+                this.logged = userData.data.logged;
+                this.loading = userData.data.loading;
+                this.admin = userData.data.admin;
+                this.$meta().refresh
+                this.superadmin = userData.data.superadmin;
+                this.$ga.event({eventCategory: "User Initialized",eventAction: "Normal",eventLabel: "Home",nonInteraction: true})
               }
-            } else if (user != null && token != null){
-              var tokenData = JSON.parse(this.$hash.AES.decrypt(token, this.$pass).toString(this.$hash.enc.Utf8));
-              var userData = JSON.parse(this.$hash.AES.decrypt(user, this.$pass).toString(this.$hash.enc.Utf8));
-              this.user = userData;
-              this.token = tokenData;
-              this.logged = true;
-              this.loading = false;
             } else {
-              this.logged = false
-              this.loading = false;
+              this.$meta().refresh
+              this.logged = userData.data.logged;
+              this.loading = userData.data.loading;
             }
-          },
-          shuffle(array) {
-            var currentIndex = array.length, temporaryValue, randomIndex;
-            while (0 !== currentIndex) {
-              randomIndex = Math.floor(Math.random() * currentIndex);
-              currentIndex -= 1;
-              temporaryValue = array[currentIndex];
-              array[currentIndex] = array[randomIndex];
-              array[randomIndex] = temporaryValue;
-            }
-            return array
           },
           verifyEmail(e) {
             this.loading = true;
@@ -320,66 +325,51 @@ import 'vue-loading-overlay/dist/vue-loading.css';
               }).then(response => {
                 if(response.data.auth && response.data.user && response.data.status == "User Present & Verified"){
                   this.loading = false;
+                  this.$ga.event({eventCategory: "Email Verification",eventAction: "User Present & Verified"+" - "+this.currgd.name,eventLabel: "Home"})
                   this.$bus.$emit('verified', 'User Verified')
                   this.$router.push({ name: 'login', params: { cmd: 'login', id:0, email: this.email } })
                 } else if(!response.data.auth && response.data.user && response.data.status == "User Present & Not Verified"){
                   this.loading = false;
                   this.$bus.$emit('verified', 'User Verified')
+                  this.$ga.event({eventCategory: "Email Verification",eventAction: "User Present & Not Verified"+" - "+this.currgd.name,eventLabel: "Home"})
                   this.$router.push({ name: 'otp', params: { cmd: 'register', id:0, email: this.email } })
                 } else if(!response.data.auth && !response.data.user && response.data.status == "User Not Present"){
                   this.loading = false;
                   this.$bus.$emit('verified', 'User Verified')
+                  this.$ga.event({eventCategory: "Email Verification",eventAction: "User Not Present"+" - "+this.currgd.name,eventLabel: "Home"})
                   this.$router.push({ name: 'request' , params: { cmd: 'register', id: 0, email: this.email } })
                 } else if(!response.data.auth && !response.data.user && response.data.status == "Pending Confirmation from Admins."){
                   this.loading = false;
                   this.$bus.$emit('verified', 'User Verified')
+                  this.$ga.event({eventCategory: "Email Verification",eventAction: "Pending Confirmation from Admins"+" - "+this.currgd.name,eventLabel: "Home"})
                   this.$router.push({ name: 'results', params: { cmd: 'result', id: 0, noredirect: true, success: true, data: "You Are Currently Pending Confirmation from Admins. Please Wait till they Accept Your Request." } })
                 } else if(!response.data.auth && !response.data.user && response.data.status == "Spammed User"){
                   this.loading = false;
                   this.$bus.$emit('verified', 'User Verified')
+                  this.$ga.event({eventCategory: "Email Verification",eventAction: "Spammed User"+" - "+this.currgd.name,eventLabel: "Home"})
                   this.$router.push({ name: 'results', params: { cmd: 'result', id: 0, noredirect: true, success: false, data: "You are being Added to Our Spam List for Violations. Please Contact Admins for Help." } })
                 } else {
                   this.loading = false;
                   this.$bus.$emit('verified', 'User Verified')
+                  this.$ga.event({eventCategory: "Email Verification",eventAction: "Network Error"+" - "+this.currgd.name,eventLabel: "Home"})
                   this.$router.push({ name: 'results', params: { cmd: 'result', id: 0, noredirect: true, success: false, data: "There's Some Error With Your Network. Please Try Again Later." } })
                 }
               }).catch(error => {
                 this.loading = false;
                 this.$bus.$emit('verified', 'User Verified')
+                this.$ga.event({eventCategory: "Email Verification",eventAction: "Network Error"+" - "+this.currgd.name,eventLabel: "Home"})
                 console.log(error);
                 this.$router.push({ name: 'login', params: { cmd: 'login', id:0, email: this.email } })
               })
             }
           },
-          scrollTo(element, scrollPixels, duration) {
-            const scrollPos = element.scrollLeft;
-            if ( !( (scrollPos === 0 || scrollPixels > 0) && (element.clientWidth + scrollPos === element.scrollWidth || scrollPixels < 0)))
-            {
-              const startTime =
-                "now" in window.performance
-                  ? performance.now()
-                  : new Date().getTime();
-
-              function scroll(timestamp) {
-                const timeElapsed = timestamp - startTime;
-                const progress = Math.min(timeElapsed / duration, 1);
-                element.scrollLeft = scrollPos + scrollPixels * progress;
-                if (timeElapsed < duration) {
-                  window.requestAnimationFrame(scroll);
-                } else {
-                  return;
-                }
-              }
-              window.requestAnimationFrame(scroll);
-            }
-          },
           swipeLeft(func) {
             const content = "this.$refs."+func;
-            this.scrollTo(eval(content), -300, 400);
+            scrollTo(eval(content), -300, 400);
           },
           swipeRight(func) {
             const content = "this.$refs."+func;
-            this.scrollTo(eval(content), 300, 400);
+            scrollTo(eval(content), 300, 400);
           },
           validateData(){
             const emailRegex = /[a-z1-9].+@+[a-z1-9A-Z].+[.][a-z]+/g
@@ -390,12 +380,12 @@ import 'vue-loading-overlay/dist/vue-loading.css';
             }
           },
           filterArrSlice(array){
-            return this.shuffle(array.filter((arr) => {
+            return shuffle(array.filter((arr) => {
               return arr.root == this.currgd.id
             })[0].link)[0]
           },
           filterArr(array) {
-            return this.shuffle(array.filter((arr) => {
+            return shuffle(array.filter((arr) => {
               return arr.root == this.currgd.id
             })[0].link)
           }
@@ -415,27 +405,16 @@ import 'vue-loading-overlay/dist/vue-loading.css';
           } else {
             this.backurl = "https://i.ibb.co/bsqHW2w/Lamplight-Mobile.gif"
           }
-          if(this.user.admin && this.user.superadmin){
-            this.admin = true,this.superadmin = true, this.loading = false;
-          } else if(this.user.admin && !this.user.superadmin){
-            this.admin = true, this.loading = false;
-          } else {
-            this.loading = false;
-          }
         },
         created() {
-          if (window.gds) {
-            this.gds = window.gds.map((item, index) => {
-              return {
-                name: item,
-                id: index,
-              };
-            });
-            let index = this.$route.params.id;
-            if (this.gds) {
-              this.currgd = this.gds[index];
-            }
-          }
+          let gddata = getgds(this.$route.params.id);
+          this.gds = gddata.gds;
+          this.currgd = gddata.current;
+          this.$ga.page({
+            page: this.$route.path,
+            title: "Home"+" - "+this.currgd.name,
+            location: window.location.href
+          });
           setInterval(() => {
             this.mainhero = this.mainHeroArray[this.mainKey]
             if(this.mainKey == this.mainHeroArray.length-1){
@@ -444,14 +423,6 @@ import 'vue-loading-overlay/dist/vue-loading.css';
               this.mainKey++;
             }
           }, 5000)
-        },
-        updated() {
-          this.$bus.$on('logged', () => {
-            this.assignUserInfo();
-          })
-          this.$bus.$on('logout', () => {
-            this.assignUserInfo();
-          })
         },
         computed: {
           ismobile() {

@@ -32,7 +32,7 @@
                                 <div class="column is-four-fifths">
                                   <div class="field">
                                     <p class="control has-icons-left">
-                                      <input class="input is-rounded" id="hypassword" type="password" placeholder="Enter Your Hybrid Password" v-model="hypassword" required>
+                                      <input class="input is-rounded" id="hypassword" autocomplete="hy-password" type="password" placeholder="Enter Your Hybrid Password" v-model="hypassword" required>
                                       <span class="icon is-small is-left">
                                         <i class="fas fa-lock"></i>
                                       </span>
@@ -135,7 +135,7 @@
             <form @submit.prevent="handleSubmit">
               <div class="field">
                 <p class="control has-icons-left has-icons-right">
-                  <input class="input is-rounded" placeholder="Email" id="logemail" type="email" v-model="email" required autofocus>
+                  <input class="input is-rounded" placeholder="Email" autocomplete="username" id="logemail" type="email" v-model="email" required autofocus>
                   <span class="icon is-small is-left">
                     <i class="fas fa-envelope"></i>
                   </span>
@@ -146,7 +146,7 @@
               </div>
               <div class="field">
                 <p class="control has-icons-left">
-                  <input class="input is-rounded" id="logpassword" type="password" placeholder="Password" v-model="password" required>
+                  <input class="input is-rounded" id="logpassword" autocomplete="current-password" type="password" placeholder="Password" v-model="password" required>
                   <span class="icon is-small is-left">
                     <i class="fas fa-lock"></i>
                   </span>
@@ -165,11 +165,31 @@
     </div>
 </template>
 <script>
+import {
+  decodeSecret,
+  encodeSecret,
+  getItem,
+  setItem,
+  checkPass
+} from '@utils/encryptUtils';
+import { getgds } from "@utils/localUtils";
 import Loading from 'vue-loading-overlay';
 import 'vue-loading-overlay/dist/vue-loading.css';
     export default {
         components: {
           Loading
+        },
+        metaInfo() {
+          return {
+            title: this.metatitle,
+            titleTemplate: (titleChunk) => {
+              if(titleChunk && this.currgd.name){
+                return titleChunk ? `${titleChunk} | ${this.currgd.name}` : `${this.currgd.name}`;
+              } else {
+                return "Loading..."
+              }
+            }
+          }
         },
         data(){
             return {
@@ -177,6 +197,7 @@ import 'vue-loading-overlay/dist/vue-loading.css';
                 password : "",
                 hypassword: "",
                 disabled: true,
+                metatitle: "Login",
                 modal: false,
                 forgotEmail: "",
                 forgotMessage: "",
@@ -197,6 +218,7 @@ import 'vue-loading-overlay/dist/vue-loading.css';
         },
         methods : {
             handleSubmit(e){
+              this.metatitle = "Logging You In..."
               this.loading = true;
                 e.preventDefault();
                 if (this.password.length > 0 && this.email.length > 0) {
@@ -206,16 +228,18 @@ import 'vue-loading-overlay/dist/vue-loading.css';
                     })
                     .then(response => {
                       if(response.data.auth && response.data.registered){
-                          localStorage.setItem("tokendata", this.$hash.AES.encrypt(JSON.stringify({ token: response.data.token ,issuedate: response.data.issuedat, expirydate: response.data.expiryat }), this.$pass).toString());
-                          localStorage.setItem("userdata", this.$hash.AES.encrypt(JSON.stringify( response.data.tokenuser ), this.$pass).toString());
-                          var token = localStorage.getItem("tokendata");
-                          var user = localStorage.getItem("userdata");
+                          this.metatitle = "Success...";
+                          setItem("tokendata", encodeSecret(JSON.stringify({ token: response.data.token ,issuedate: response.data.issuedat, expirydate: response.data.expiryat })));
+                          setItem("userdata", encodeSecret(JSON.stringify( response.data.tokenuser )));
+                          var token = getItem("tokendata");
+                          var user = getItem("userdata");
                           if(token != null && user != null){
-                            var tokenData = JSON.parse(this.$hash.AES.decrypt(token, this.$pass).toString(this.$hash.enc.Utf8))
-                            var userData = JSON.parse(this.$hash.AES.decrypt(user, this.$pass).toString(this.$hash.enc.Utf8));
+                            var tokenData = JSON.parse(decodeSecret(token));
+                            var userData = JSON.parse(decodeSecret(user));
                             this.loading = false;
                             this.errormessageVisibility = false;
                             this.successmessageVisibility = true;
+                            this.$ga.event({eventCategory: "Normal Login",eventAction: "Successfully Logged"+" - "+this.currgd.name,eventLabel: "Login"})
                             this.resultmessage = `Logged in Successfully as ${userData.name}. Your token will expire at ${ this.$moment(tokenData.expirydate).format("dddd, MMMM Do YYYY [at] hh:mm A")}.`;
                             this.$bus.$emit('logged', 'User Logged')
                             setTimeout(() => {
@@ -228,6 +252,8 @@ import 'vue-loading-overlay/dist/vue-loading.css';
                             }, 500)
                           }
                       } else {
+                        this.metatitle = "Failed...";
+                        this.$ga.event({eventCategory: "Normal Login",eventAction: "Failed"+" - "+this.currgd.name,eventLabel: "Login"})
                         this.errormessageVisibility = true;
                         this.successmessageVisibility = false;
                         this.loading = false;
@@ -237,10 +263,11 @@ import 'vue-loading-overlay/dist/vue-loading.css';
                 }
             },
             async handleHybrid() {
+              this.metatitle = "Logging You In..."
               this.loading = true;
               console.log(this.hypassword);
               const hyBridpass = window.gdHybridPass;
-              var synced = await this.$saltIt.compareSync(this.hypassword, hyBridpass)
+              var synced = await checkPass(this.hypassword, hyBridpass)
               if(synced){
                 console.log(synced);
                 const hybridData = {
@@ -253,34 +280,37 @@ import 'vue-loading-overlay/dist/vue-loading.css';
                   superadmin: false,
                   verified: true
                 }
-                await localStorage.setItem("hybridToken", this.$hash.AES.encrypt(JSON.stringify( hybridData ), this.$pass).toString());
-                var dataFromLocal = await JSON.parse(this.$hash.AES.decrypt(localStorage.getItem("hybridToken"), this.$pass).toString(this.$hash.enc.Utf8));
+                await setItem("hybridToken", encodeSecret(JSON.stringify( hybridData )));
+                var dataFromLocal = await JSON.parse(decodeSecret(getItem("hybridToken")));
                 if(dataFromLocal.user){
-                  console.log("Super Pa")
-                  console.log(localStorage.getItem("hybridToken"));
+                  this.metatitle = "Success...";
                   this.loading = false;
                   this.errormessageVisibility = false;
                   this.successmessageVisibility = true;
+                  this.$ga.event({eventCategory: "Hybrid Login",eventAction: "Successfully Logged"+" - "+this.currgd.name,eventLabel: "Login"})
                   this.resultmessage = `Logged in Successfully as Guest User.You will Log Out after this Browser Session.`;
                   this.$bus.$emit('logged', 'User Logged');
                   setTimeout(() => {
                     this.$router.push({name: "results", params: { id: this.currgd.id, cmd: "result", success: true, tocmd: 'home', data: "Log in Successfull. You Will be Redirected Through a Secure Channel.", redirectUrl: '/' }})
                   }, 500)
                 } else {
+                  this.metatitle = "Failed...";
                   this.loading = false;
+                  this.$ga.event({eventCategory: "Hybrid Login",eventAction: "Failed"+" - "+this.currgd.name,eventLabel: "Login"})
                   this.errormessageVisibility = true;
                   this.successmessageVisibility = false;
                   this.resultmessage = `Hybrid Password is Wrong`;
                 }
               } else {
+                this.metatitle = "Failed...";
                 this.loading = false;
+                this.$ga.event({eventCategory: "Hybrid Login",eventAction: "Failed"+" - "+this.currgd.name,eventLabel: "Login"})
                 this.errormessageVisibility = true;
                 this.successmessageVisibility = false;
                 this.resultmessage = `Hybrid Password is Wrong`;
               }
             },
             checkParams() {
-              console.log("checked")
               if(this.$route.params.email){
                 this.email = this.$route.params.email
                 this.emailFocus = false;
@@ -291,6 +321,7 @@ import 'vue-loading-overlay/dist/vue-loading.css';
               }
             },
             gotoPage(url, cmd) {
+              this.$ga.event({eventCategory: "Page Navigation",eventAction: url+" - "+this.currgd.name,eventLabel: "Login"})
               if(cmd){
                 this.$router.push({ path: '/'+ this.currgd.id + ':' + cmd + url })
               } else {
@@ -306,6 +337,7 @@ import 'vue-loading-overlay/dist/vue-loading.css';
               }
             },
             handleForgotPass(e) {
+              this.metatitle = "Forgot Password";
               this.loading = true;
               e.preventDefault();
               console.log(this.forgotEmail);
@@ -315,13 +347,17 @@ import 'vue-loading-overlay/dist/vue-loading.css';
                 }).then(response => {
                   if(response.data.auth && response.data.registered && response.data.changed){
                     this.loading = false;
+                    this.$ga.event({eventCategory: "Forgot Password",eventAction: "Successfully Reset"+" - "+this.currgd.name,eventLabel: "Login"})
                     this.forgotSuccessMessage = true;
                     this.forgotErrorMessage = false;
+                    this.metatitle = "Password Reset Success";
                     this.forgotMessage = response.data.message
                   } else {
                     this.loading = false;
+                    this.$ga.event({eventCategory: "Forgot Password",eventAction: "Failed"+" - "+this.currgd.name,eventLabel: "Login"})
                     this.forgotSuccessMessage = false;
                     this.forgotErrorMessage = true;
+                    this.metatitle = "Password Reset Failed";
                     this.forgotMessage = response.data.message;
                   }
                 })
@@ -347,18 +383,14 @@ import 'vue-loading-overlay/dist/vue-loading.css';
           this.checkParams();
         },
         created() {
-          if (window.gds) {
-            this.gds = window.gds.map((item, index) => {
-              return {
-                name: item,
-                id: index,
-              };
-            });
-            let index = this.$route.params.id;
-            if (this.gds) {
-              this.currgd = this.gds[index];
-            }
-          }
+          let gddata = getgds(this.$route.params.id);
+          this.gds = gddata.gds;
+          this.currgd = gddata.current;
+          this.$ga.page({
+            page: this.$route.path,
+            title: "Login"+" - "+this.currgd.name,
+            location: window.location.href
+          });
         },
         watch: {
           email: "validateData",

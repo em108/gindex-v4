@@ -15,17 +15,33 @@
 </template>
 
 <script>
+import { initializeUser, getgds } from "@utils/localUtils";
 import { decode64 } from "@utils/AcrouUtil";
 import Loading from 'vue-loading-overlay';
 export default {
+  metaInfo() {
+    return {
+      title: this.metatitle,
+      titleTemplate: (titleChunk) => {
+        if(titleChunk && this.currgd.name){
+          return titleChunk ? `${titleChunk} | ${this.currgd.name}` : `${this.currgd.name}`;
+        } else {
+          return "Loading..."
+        }
+      }
+    }
+  },
   data: function() {
     return {
       imgurl: "",
+      metatitle: "",
       user: {},
       token: {},
       windowWidth: window.innerWidth,
       screenWidth: screen.width,
       ismobile: false,
+      gds: [],
+      currgd: {},
       mediaToken: "",
       mainLoad: false,
       fullpage: true,
@@ -48,6 +64,7 @@ export default {
       let path = window.location.origin + encodeURI(this.url)+"?player=internal"+"&token="+this.token.token+"&email="+this.user.email;
 // Easy to debug in development environment
 // path = process.env.NODE_ENV === "development"? "/api" + path: "";
+      this.metatitle = decodeURIComponent(this.url.split('/').pop().split('.').slice(0,-1).join('.'));
       this.imgurl = path;
     },
     checkMobile() {
@@ -64,35 +81,49 @@ export default {
       }
     }
   },
-  beforeMount() {
+  async beforeMount() {
     this.checkMobile();
-    this.mainLoad = true;
-    var user = localStorage.getItem("userdata");
-    var token = localStorage.getItem("tokendata");
-    if(user && token){
-      var tokenData = JSON.parse(this.$hash.AES.decrypt(token, this.$pass).toString(this.$hash.enc.Utf8));
-      var userData = JSON.parse(this.$hash.AES.decrypt(user, this.$pass).toString(this.$hash.enc.Utf8));
-      this.user = userData, this.token = tokenData;
-      this.$http.post(window.apiRoutes.mediaTokenTransmitter, {
-        email: userData.email,
-        token: tokenData.token,
-      }).then(response => {
-        if(response.data.auth && response.data.registered && response.data.token){
-          this.mainLoad = false;
-          this.mediaToken = response.data.token;
-          this.render();
-        } else {
-          this.mainLoad = false;
-          this.mediaToken = "";
-        }
-      }).catch(e => {
-        console.log(e);
+    this.mainload = true;
+    var userData = await initializeUser();
+    if(userData.isThere){
+      if(userData.type == "hybrid"){
+        this.user = userData.data.user;
+        this.logged = userData.data.logged;
+      } else if(userData.type == "normal"){
+        this.user = userData.data.user;
+        this.token = userData.data.token;
+        this.logged = userData.data.logged;
+      }
+    } else {
+      this.logged = userData.data.logged;
+    }
+    await this.$http.post(window.apiRoutes.mediaTokenTransmitter, {
+      email: userData.data.user.email,
+      token: userData.data.token.token,
+    }).then(response => {
+      if(response.data.auth && response.data.registered && response.data.token){
+        this.mainLoad = false;
+        this.mediaToken = response.data.token;
+        this.render();
+      } else {
         this.mainLoad = false;
         this.mediaToken = "";
-      })
-    } else {
-      this.user = null, this.token = null, this.mainLoad = false;
-    }
+      }
+    }).catch(e => {
+      console.log(e);
+      this.mainLoad = false;
+      this.mediaToken = "";
+    })
+  },
+  created() {
+    let gddata = getgds(this.$route.params.id);
+    this.gds = gddata.gds;
+    this.currgd = gddata.current;
+    this.$ga.page({
+      page: "/Image/"+this.url.split('/').pop()+"/",
+      title: this.url.split('/').pop().split('.').slice(0,-1).join('.')+" - "+this.currgd.name,
+      location: window.location.href
+    });
   },
   watch: {
     screenWidth: function() {

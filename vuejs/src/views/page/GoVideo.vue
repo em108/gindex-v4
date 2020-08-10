@@ -23,7 +23,7 @@
                   </div>
                 </div>
                 <div :class="ismobile ? 'column is-11' : 'column is-7'">
-                    <p class="subtitle has-text-white has-text-weight-bold"> {{ videoname.split('.').slice(0,-1).join('.') }}</p>
+                    <p class="subtitle has-text-white has-text-weight-bold"> {{ decodeURIComponent(videoname.split('.').slice(0,-1).join('.')) }}</p>
                 </div>
                 <div :class="ismobile ? 'column is-hidden title has-text-weight-semibold has-text-right is-4' : 'column title has-text-weight-semibold has-text-right is-4'">
                   <span class="icon has-text-netflix-only is-medium">
@@ -199,6 +199,7 @@
 </template>
 
 <script>
+import { initializeUser, getgds } from "@utils/localUtils";
 import {
   formatDate,
   formatFileSize,
@@ -209,15 +210,29 @@ import {
 import Loading from 'vue-loading-overlay';
 import InfiniteLoading from "vue-infinite-loading";
 import { mapState } from "vuex";
-import { decode64, srt2vtt } from "@utils/AcrouUtil";
+import { decode64 } from "@utils/AcrouUtil";
+import { srt2vtt } from "@utils/playUtils";
 
 export default {
   components: {
     InfiniteLoading,
     Loading
   },
+  metaInfo() {
+    return {
+      title: this.metatitle,
+      titleTemplate: (titleChunk) => {
+        if(titleChunk && this.currgd.name){
+          return titleChunk ? `${titleChunk} | ${this.currgd.name}` : `${this.currgd.name}`;
+        } else {
+          return "Loading..."
+        }
+      }
+    }
+  },
   data: function() {
     return {
+      metatitle: "",
       apiurl: "",
       externalUrl: "",
       downloadUrl: "",
@@ -274,6 +289,7 @@ export default {
       this.render($state);
     },
     render($state) {
+      this.metatitle = "Loading...";
       var path = this.url.split(this.url.split('/').pop())[0];
       var password = localStorage.getItem("password" + path);
       var p = {
@@ -318,6 +334,7 @@ export default {
         });
     },
     buildFiles(files) {
+      this.metatitle = decodeURIComponent(this.url.split('/').pop().split('.').slice(0,-1).join('.'));
       var path = this.url.split(this.url.split('/').pop())[0];
       return !files
         ? []
@@ -345,24 +362,6 @@ export default {
         this.$router.go(-1);
       }
     },
-    shuffle(array) {
-      var currentIndex = array.length, temporaryValue, randomIndex;
-
-      // While there remain elements to shuffle...
-      while (0 !== currentIndex) {
-
-        // Pick a remaining element...
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex -= 1;
-
-        // And swap it with the current element.
-        temporaryValue = array[currentIndex];
-        array[currentIndex] = array[randomIndex];
-        array[randomIndex] = temporaryValue;
-      }
-
-      return array
-    },
     checkMobile() {
       var width = this.windowWidth > 0 ? this.windowWidth : this.screenWidth;
       if(width > 966){
@@ -389,7 +388,6 @@ export default {
            }
          } else if(regext.test(item.name)){
            let groups = regext.exec(item.name).groups;
-           console.log(groups)
            let url = item.path+"?player=internal"+"&token="+this.token.token+"&email="+this.user.email;
            let blob = await this.getSrtFile(url);
            if(blob.success){
@@ -603,47 +601,47 @@ export default {
     },
   },
   created() {
-    if (window.gds) {
-      this.gds = window.gds.map((item, index) => {
-        return {
-          name: item,
-          id: index,
-        };
-      });
-      let index = this.$route.params.id;
-      if (this.gds) {
-        this.currgd = this.gds[index];
-      }
-    }
+    let gddata = getgds(this.$route.params.id);
+    this.gds = gddata.gds;
+    this.currgd = gddata.current;
+    this.$ga.page({
+      page: "/Video/"+this.url.split('/').pop()+"/",
+      title: decodeURIComponent(this.url.split('/').pop().split('.').slice(0,-1).join('.'))+" - "+this.currgd.name,
+      location: window.location.href
+    });
   },
-  beforeMount() {
-    this.mainLoad = true;
-    var user = localStorage.getItem("userdata");
-    var token = localStorage.getItem("tokendata");
-    if(user && token){
-      var tokenData = JSON.parse(this.$hash.AES.decrypt(token, this.$pass).toString(this.$hash.enc.Utf8));
-      var userData = JSON.parse(this.$hash.AES.decrypt(user, this.$pass).toString(this.$hash.enc.Utf8));
-      this.user = userData, this.token = tokenData;
-      this.$http.post(window.apiRoutes.mediaTokenTransmitter, {
-        email: userData.email,
-        token: tokenData.token,
-      }).then(response => {
-        if(response.data.auth && response.data.registered && response.data.token){
-          this.mainLoad = false;
-          this.mediaToken = response.data.token;
-          this.getVideourl();
-        } else {
-          this.mainLoad = false;
-          this.mediaToken = "";
-        }
-      }).catch(e => {
-        console.log(e);
+  async beforeMount() {
+    this.mainload = true;
+    var userData = await initializeUser();
+    if(userData.isThere){
+      if(userData.type == "hybrid"){
+        this.user = userData.data.user;
+        this.logged = userData.data.logged;
+      } else if(userData.type == "normal"){
+        this.user = userData.data.user;
+        this.token = userData.data.token;
+        this.logged = userData.data.logged;
+      }
+    } else {
+      this.logged = userData.data.logged;
+    }
+    await this.$http.post(window.apiRoutes.mediaTokenTransmitter, {
+      email: userData.data.user.email,
+      token: userData.data.token.token,
+    }).then(response => {
+      if(response.data.auth && response.data.registered && response.data.token){
+        this.mainLoad = false;
+        this.mediaToken = response.data.token;
+        this.getVideourl();
+      } else {
         this.mainLoad = false;
         this.mediaToken = "";
-      })
-    } else {
-      this.user = null, this.token = null, this.mainLoad = false;
-    }
+      }
+    }).catch(e => {
+      console.log(e);
+      this.mainLoad = false;
+      this.mediaToken = "";
+    })
   },
   mounted() {
     this.checkMobile();
@@ -687,10 +685,13 @@ export default {
         this.playtext="Let's Party"
       })
       this.player.on('play', () => {
+        this.$ga.event({eventCategory: this.videoname,eventAction: "Started Playing"+" - "+this.currgd.name,eventLabel: "Video Page"})
         this.playicon="fas fa-spin fa-compact-disc";
+        this.metatitle = "Playing"+"-"+decodeURIComponent(this.url.split('/').pop().split('.').slice(0,-1).join('.'));
         this.playtext="Playing"
       });
       this.player.on('pause', () => {
+        this.metatitle = "Paused"+"-"+decodeURIComponent(this.url.split('/').pop().split('.').slice(0,-1).join('.'));
         this.playicon="fas fa-pause",
         this.playtext="Paused"
       });

@@ -165,16 +165,30 @@ import {
   checkoutPath,
   checkView,
   checkExtends,
+  decode64,
 } from "@utils/AcrouUtil";
+import { initializeUser, getgds } from "@utils/localUtils";
 import InfiniteLoading from "vue-infinite-loading";
 import { mapState } from "vuex";
 import Loading from 'vue-loading-overlay';
-import { decode64 } from "@utils/AcrouUtil";
 export default {
+  metaInfo() {
+    return {
+      title: this.metatitle,
+      titleTemplate: (titleChunk) => {
+        if(titleChunk && this.currgd.name){
+          return titleChunk ? `${titleChunk} | ${this.currgd.name}` : `${this.currgd.name}`;
+        } else {
+          return "Loading..."
+        }
+      }
+    }
+  },
   data: function() {
     return {
       apiurl: "",
       externalUrl: "",
+      metatitle: "",
       downloadUrl: "",
       audiourl: "",
       windowWidth: window.innerWidth,
@@ -185,6 +199,8 @@ export default {
       fullpage: true,
       user: {},
       token: {},
+      gds: [],
+      currgd: {},
       mediaToken: "",
       poster: "",
       infiniteId: +new Date(),
@@ -247,6 +263,7 @@ export default {
       this.render($state);
     },
     render($state) {
+      this.metatitle = "Loading...";
       var path = this.url.split(this.url.split('/').pop())[0];
       var password = localStorage.getItem("password" + path);
       var p = {
@@ -289,6 +306,7 @@ export default {
         });
     },
     buildFiles(files) {
+      this.metatitle = decodeURIComponent(this.url.split('/').pop().split('.').slice(0,-1).join('.'));
       var path = this.url.split(this.url.split('/').pop())[0];
       return !files
         ? []
@@ -315,24 +333,6 @@ export default {
       } else {
         this.$router.go(-1);
       }
-    },
-    shuffle(array) {
-      var currentIndex = array.length, temporaryValue, randomIndex;
-
-      // While there remain elements to shuffle...
-      while (0 !== currentIndex) {
-
-        // Pick a remaining element...
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex -= 1;
-
-        // And swap it with the current element.
-        temporaryValue = array[currentIndex];
-        array[currentIndex] = array[randomIndex];
-        array[randomIndex] = temporaryValue;
-      }
-
-      return array
     },
     checkMobile() {
       var width = this.windowWidth > 0 ? this.windowWidth : this.screenWidth;
@@ -473,34 +473,38 @@ export default {
       return Buffer.from("AA" + this.externalUrl + "ZZ").toString("base64");
     },
   },
-  beforeMount() {
-    this.mainLoad = true;
-    var user = localStorage.getItem("userdata");
-    var token = localStorage.getItem("tokendata");
-    if(user && token){
-      var tokenData = JSON.parse(this.$hash.AES.decrypt(token, this.$pass).toString(this.$hash.enc.Utf8));
-      var userData = JSON.parse(this.$hash.AES.decrypt(user, this.$pass).toString(this.$hash.enc.Utf8));
-      this.user = userData, this.token = tokenData;
-      this.$http.post(window.apiRoutes.mediaTokenTransmitter, {
-        email: userData.email,
-        token: tokenData.token,
-      }).then(response => {
-        if(response.data.auth && response.data.registered && response.data.token){
-          this.mainLoad = false;
-          this.mediaToken = response.data.token;
-          this.getAudioUrl();
-        } else {
-          this.mainLoad = false;
-          this.mediaToken = "";
-        }
-      }).catch(e => {
-        console.log(e);
+  async beforeMount() {
+    this.mainload = true;
+    var userData = await initializeUser();
+    if(userData.isThere){
+      if(userData.type == "hybrid"){
+        this.user = userData.data.user;
+        this.logged = userData.data.logged;
+      } else if(userData.type == "normal"){
+        this.user = userData.data.user;
+        this.token = userData.data.token;
+        this.logged = userData.data.logged;
+      }
+    } else {
+      this.logged = userData.data.logged;
+    }
+    await this.$http.post(window.apiRoutes.mediaTokenTransmitter, {
+      email: userData.data.user.email,
+      token: userData.data.token.token,
+    }).then(response => {
+      if(response.data.auth && response.data.registered && response.data.token){
+        this.mainLoad = false;
+        this.mediaToken = response.data.token;
+        this.getAudioUrl();
+      } else {
         this.mainLoad = false;
         this.mediaToken = "";
-      })
-    } else {
-      this.user = null, this.token = null, this.mainLoad = false;
-    }
+      }
+    }).catch(e => {
+      console.log(e);
+      this.mainLoad = false;
+      this.mediaToken = "";
+    })
   },
   mounted() {
     this.checkMobile();
@@ -512,6 +516,16 @@ export default {
     }
     this.player = this.$refs.plyr.player
     this.audioname = this.url.split('/').pop();
+  },
+  created() {
+    let gddata = getgds(this.$route.params.id);
+    this.gds = gddata.gds;
+    this.currgd = gddata.current;
+    this.$ga.page({
+      page: "/Audio/"+this.url.split('/').pop()+"/",
+      title: decodeURIComponent(this.url.split('/').pop().split('.').slice(0,-1).join('.'))+" - "+this.currgd.name,
+      location: window.location.href
+    });
   },
   watch: {
     screenWidth: function() {
@@ -547,12 +561,15 @@ export default {
         this.playtext="Let's Party"
       })
       this.player.on('play', () => {
+        this.$ga.event({eventCategory: this.audioname,eventAction: "Started Playing"+" - "+this.currgd.name,eventLabel: "Audio Page"})
         this.poster = "https://thumbs.gfycat.com/MadFamiliarAngwantibo-size_restricted.gif";
+        this.metatitle = "Playing"+"-"+decodeURIComponent(this.url.split('/').pop().split('.').slice(0,-1).join('.'));
         this.playicon="fas fa-spin fa-compact-disc";
         this.playtext="Playing"
       });
       this.player.on('pause', () => {
         this.poster = "https://thumbs.gfycat.com/HeavenlyExcitableFlyingfish-size_restricted.gif";
+        this.metatitle = "Paused"+"-"+decodeURIComponent(this.url.split('/').pop().split('.').slice(0,-1).join('.'));
         this.playicon="fas fa-pause",
         this.playtext="Paused"
       });

@@ -110,15 +110,29 @@
     </div>
 </template>
 <script>
+import { getgds } from "@utils/localUtils";
 import Loading from 'vue-loading-overlay';
 import 'vue-loading-overlay/dist/vue-loading.css';
     export default {
       components: {
         Loading
       },
+      metaInfo() {
+        return {
+          title: this.metatitle,
+          titleTemplate: (titleChunk) => {
+            if(titleChunk && this.currgd.name){
+              return titleChunk ? `${titleChunk} | ${this.currgd.name}` : `${this.currgd.name}`;
+            } else {
+              return "Loading..."
+            }
+          }
+        }
+      },
         data(){
             return {
                 email : "",
+                metatitle: "OTP Register",
                 emailFocus: "",
                 otpFocus: "",
                 otp: "",
@@ -137,6 +151,7 @@ import 'vue-loading-overlay/dist/vue-loading.css';
         },
         methods : {
             handleSubmit(e){
+              this.metatitle = "Verifying..."
               this.loading = true;
                 e.preventDefault();
                 if (this.confirmpassword === this.password && this.password.length > 0) {
@@ -146,16 +161,19 @@ import 'vue-loading-overlay/dist/vue-loading.css';
                         newpassword: this.password,
                     })
                     .then(response => {
-                      console.log(response);
                       if(response.data.auth && response.data.registered && response.data.changed){
                           this.errormessageVisibility = false;
                           this.successmessageVisibility = true;
                           this.loading = false;
+                          this.metatitle = "Success Verifying";
+                          this.$ga.event({eventCategory: "User Verification",eventAction: "User Registered - "+" - "+this.currgd.name,eventLabel: "OTP Register"})
                           this.resultmessage = response.data.message + "Now You can Login with Your Email and Password";
                         } else {
                           this.errormessageVisibility = true;
                           this.successmessageVisibility = false;
                           this.loading = false;
+                          this.metatitle = "Failed Verifying";
+                          this.$ga.event({eventCategory: "User Verification",eventAction: "Failed - "+" - "+this.currgd.name,eventLabel: "OTP Register"})
                           this.resultmessage = response.data.message;
                       }
                     });
@@ -169,6 +187,7 @@ import 'vue-loading-overlay/dist/vue-loading.css';
                 }
             },
             gotoPage(url, cmd) {
+              this.$ga.event({eventCategory: "Page Navigation",eventAction: url+" - "+this.currgd.name,eventLabel: "OTP Register"})
               if(cmd){
                 this.$router.push({ path: '/'+ this.currgd.id + ':' + cmd + url })
               } else {
@@ -199,18 +218,14 @@ import 'vue-loading-overlay/dist/vue-loading.css';
           this.checkParams();
         },
         created() {
-          if (window.gds && window.gds.length > 0) {
-            this.gds = window.gds.map((item, index) => {
-              return {
-                name: item,
-                id: index,
-              };
-            });
-            let index = this.$route.params.id;
-            if (this.gds && this.gds.length >= index) {
-              this.currgd = this.gds[index];
-            }
-          }
+          let gddata = getgds(this.$route.params.id);
+          this.gds = gddata.gds;
+          this.currgd = gddata.current;
+          this.$ga.page({
+            page: this.$route.path,
+            title: "OTP Register"+" - "+this.currgd.name,
+            location: window.location.href
+          });
         },
         watch: {
           otp: "validateData",
